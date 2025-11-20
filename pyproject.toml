@@ -1,7 +1,7 @@
 [project]
-name = "Astro Layer Perceptron"
+name = "ALP"
 version = "1.0.0"
-description = "ALP: ANN for astrophysical regression."
+description = "Astro Layer Perceptron (ALP): ANN for astrophysical regression."
 authors = [
   { name = "Isidro Gomez-Vargas", email = "isidro.gomezvargas@unige.ch" }
 ]
