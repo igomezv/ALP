@@ -4,13 +4,12 @@ Astro Layer Perceptron
 2025
 by Isidro Gomez-Vargas (isidro.gomezvargas@unige.ch)
 ----------------------------------------------------------
-A modular framework for stellar spectroscopy analysis and 
-Artificial Neural Networks inference using shell representations.
+A deep learning framework tailored for astrophysical data modeling.
 
 Subpackages:
-    - physics:   Physical modeling tools (CCF, shells, periodograms)
-    - data:      Data loading, preprocessing, and scaling
-    - networks:  Deep learning architectures (CNNs, VAEs, etc.)
+    - physics:   Physical modeling tools
+    - data:      Data loading, preprocessing and augmentation
+    - networks:  Deep learning architectures 
     - utils:     Logging configuration and global utilities
 """
 
