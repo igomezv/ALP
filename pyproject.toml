@@ -1,5 +1,5 @@
 [project]
-name = "ALP"
+name = "alp"
 version = "1.0.0"
 description = "Astro Layer Perceptron (ALP): ANN for astrophysical regression."
 authors = [
@@ -33,7 +33,7 @@ dependencies = [
 viz = ["plotly>=5.22.0"]
 notebooks = ["jupyterlab>=4.2.0", "ipykernel>=6.29.0"]
 dev = ["pytest>=8.2.0", "pre-commit>=3.8.0", "ruff>=0.6.4", "black>=24.8.0"]
-bayes = ["kima", "dynesty>=2.1.4", "tensorflow-probability>=0.23.0", "theano-pymc>=1.1.0", "arviz>=0.17.0"]
+bayes = ["dynesty>=2.1.4", "tensorflow-probability>=0.23.0", "theano-pymc>=1.1.0", "arviz>=0.17.0"]
 
 all = [
   "plotly>=5.22.0",
@@ -43,7 +43,6 @@ all = [
   "pre-commit>=3.8.0",
   "ruff>=0.6.4",
   "black>=24.8.0",
-  "kima",
   "dynesty>=2.1.4",
   "tensorflow-probability>=0.23.0",
   "theano-pymc>=1.1.0",
@@ -56,7 +55,7 @@ line-length = 99
 lint.extend-select = ["B", "I", "W"]
 
 [tool.setuptools.packages.find]
-include = ["doppleriann*"]
+include = ["alp*"]
 
 [tool.setuptools.package-data]
 "*" = ["*.txt", "*.cpp", "*.c"]
