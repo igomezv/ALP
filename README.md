@@ -70,3 +70,4 @@ pip install -e .
 - **Uncertainty Quantification**: MC Dropout, heteroscedastic loss, conformal prediction
 - **Physics Module**: ΛCDM calculations, distance modulus
 - **Data Utilities**: Train/test splits with endpoint preservation
+
