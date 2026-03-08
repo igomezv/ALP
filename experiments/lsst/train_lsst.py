@@ -120,10 +120,29 @@ def plot_training_history(history):
 
 
 def plot_reconstruction_comparison(results, z_test_range, z_data, mu_data, error_data):
-    """Plot reconstruction comparison with improved visualization."""
+    """Plot reconstruction comparison with improved visualization.
+
+    Only plots within the training data bounds to avoid extrapolation.
+    """
+    from scipy.interpolate import interp1d
+
+    # Get training data bounds (critical to avoid extrapolation)
+    z_train_min, z_train_max = np.min(z_data), np.max(z_data)
+    logger.info(f"Training redshift range: [{z_train_min:.4f}, {z_train_max:.4f}]")
+
+    # Clip z_test_range to training bounds
+    valid_mask = (z_test_range >= z_train_min) & (z_test_range <= z_train_max)
+    z_plot = z_test_range[valid_mask]
+    results_plot_mean = results["mean"][valid_mask, 0]
+    results_plot_unc = results["combined_uncertainty"][valid_mask]
 
     # Get ΛCDM predictions
     z_model, flcdm = get_lcdm_predictions()
+
+    # Clip ΛCDM to training range
+    lcdm_mask = (z_model >= z_train_min) & (z_model <= z_train_max)
+    z_model_plot = z_model[lcdm_mask]
+    flcdm_plot = flcdm[lcdm_mask]
 
     # Create figure with larger size
     plt.figure(figsize=(12, 8))
@@ -143,14 +162,14 @@ def plot_reconstruction_comparison(results, z_test_range, z_data, mu_data, error
         zorder=1,
     )
 
-    # Plot ΛCDM model
-    plt.plot(z_model, flcdm, "b-", linewidth=3, alpha=0.8, label="ΛCDM Theory", zorder=3)
+    # Plot ΛCDM model (within training range only)
+    plt.plot(z_model_plot, flcdm_plot, "b-", linewidth=3, alpha=0.8, label="ΛCDM Theory", zorder=3)
 
-    # Plot ALP predictions with uncertainty
+    # Plot ALP predictions with uncertainty (within training range only)
     plt.errorbar(
-        z_test_range,
-        results["mean"][:, 0],
-        results["combined_uncertainty"],
+        z_plot,
+        results_plot_mean,
+        results_plot_unc,
         markersize=4,
         fmt="o",
         ecolor="red",
@@ -163,27 +182,24 @@ def plot_reconstruction_comparison(results, z_test_range, z_data, mu_data, error
         zorder=4,
     )
 
-    # Add confidence region with continuous gradient
-    from scipy.interpolate import interp1d
+    # Add confidence region with continuous gradient (only within training range)
+    # Create smooth interpolation strictly within bounds
+    z_smooth = np.linspace(z_train_min, z_train_max, 200)
 
-    # Create smooth interpolation for better visualization
-    # Use slightly narrower range to avoid interpolation bounds errors
-    z_smooth = np.linspace(z_test_range.min() * 1.001, z_test_range.max() * 0.999, 200)
-
-    # Interpolate ALP mean and uncertainty with bounds_error=False for safety
+    # Interpolate ALP mean and uncertainty (only within training bounds)
     interp_mean = interp1d(
-        z_test_range,
-        results["mean"][:, 0],
+        z_plot,
+        results_plot_mean,
         kind="cubic",
-        bounds_error=False,
-        fill_value="extrapolate",
+        bounds_error=True,
+        fill_value=np.nan,
     )
     interp_unc = interp1d(
-        z_test_range,
-        results["combined_uncertainty"],
+        z_plot,
+        results_plot_unc,
         kind="cubic",
-        bounds_error=False,
-        fill_value="extrapolate",
+        bounds_error=True,
+        fill_value=np.nan,
     )
 
     mean_smooth = interp_mean(z_smooth)
@@ -223,8 +239,13 @@ def plot_reconstruction_comparison(results, z_test_range, z_data, mu_data, error
     plt.ylabel("Distance Modulus μ(z)", fontsize=16, fontweight="bold")
     plt.xticks(fontsize=14)
     plt.yticks(fontsize=14)
-    plt.xlim(0, 1.3)
-    plt.ylim(33, 46)
+    plt.xlim(z_train_min - 0.05, z_train_max + 0.05)
+
+    # Dynamic ylim: extend to cover displayed data + uncertainty + margin
+    y_min = np.min(results_plot_mean - results_plot_unc) - 0.5
+    y_max = np.max(results_plot_mean + results_plot_unc) + 0.5
+    plt.ylim(y_min, y_max)
+
     plt.grid(True, alpha=0.3, linestyle="--")
 
     # Enhanced legend
@@ -232,7 +253,7 @@ def plot_reconstruction_comparison(results, z_test_range, z_data, mu_data, error
     legend.get_frame().set_facecolor("white")
 
     plt.title(
-        "LSST Distance Modulus: Observations vs Theory vs ALP Reconstruction",
+        "LSST Distance Modulus: Observations vs Theory vs ALP Reconstruction (Training Range Only)",
         fontsize=18,
         fontweight="bold",
         pad=20,
@@ -271,7 +292,11 @@ def plot_results(history, results, z_test_range, z_data, mu_data, error_data):
 
 
 def create_summary_plot(history, results, z_test_range, z_data, mu_data, error_data):
-    """Create a summary plot with training metrics and reconstruction."""
+    """Create a summary plot with training metrics and reconstruction.
+
+    Only plots within the training data bounds to avoid extrapolation.
+    """
+    from scipy.interpolate import interp1d
 
     fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(16, 6))
 
@@ -286,12 +311,11 @@ def create_summary_plot(history, results, z_test_range, z_data, mu_data, error_d
     ax1.set_title("Training Performance", fontsize=14, fontweight="bold")
     ax1.grid(True, alpha=0.3)
 
-    # Right: Reconstruction zoom-in (limited region)
-    z_model, flcdm = get_lcdm_predictions()
+    # Right: Reconstruction within training range only
+    z_train_min, z_train_max = np.min(z_data), np.max(z_data)
 
-    # Zoom to region with good data coverage
-    z_min_zoom, z_max_zoom = 0.1, 1.0
-    mask_zoom = (z_test_range >= z_min_zoom) & (z_test_range <= z_max_zoom)
+    # Clip to training range
+    mask_zoom = (z_test_range >= z_train_min) & (z_test_range <= z_train_max)
 
     if np.any(mask_zoom):
         z_zoom = z_test_range[mask_zoom]
@@ -313,16 +337,12 @@ def create_summary_plot(history, results, z_test_range, z_data, mu_data, error_d
             label="ALP Reconstruction",
         )
 
-        # Add smooth confidence region for zoomed area
-        from scipy.interpolate import interp1d
-
-        z_smooth = np.linspace(z_min_zoom, z_max_zoom, 100)
+        # Add smooth confidence region strictly within training bounds
+        z_smooth = np.linspace(z_train_min, z_train_max, 100)
         interp_mean = interp1d(
-            z_zoom, results_zoom, kind="cubic", bounds_error=False, fill_value="extrapolate"
+            z_zoom, results_zoom, kind="cubic", bounds_error=True, fill_value=np.nan
         )
-        interp_unc = interp1d(
-            z_zoom, unc_zoom, kind="cubic", bounds_error=False, fill_value="extrapolate"
-        )
+        interp_unc = interp1d(z_zoom, unc_zoom, kind="cubic", bounds_error=True, fill_value=np.nan)
 
         mean_smooth = interp_mean(z_smooth)
         unc_smooth = interp_unc(z_smooth)
@@ -336,15 +356,18 @@ def create_summary_plot(history, results, z_test_range, z_data, mu_data, error_d
             edgecolor="none",
         )
 
-        # Add ΛCDM reference line
-        z_lcdm_zoom = z_model[(z_model >= z_min_zoom) & (z_model <= z_max_zoom)]
-        flcdm_zoom = flcdm[(z_model >= z_min_zoom) & (z_model <= z_max_zoom)]
+        # Add ΛCDM reference line only within training range
+        z_model, flcdm = get_lcdm_predictions()
+        z_lcdm_zoom = z_model[(z_model >= z_train_min) & (z_model <= z_train_max)]
+        flcdm_zoom = flcdm[(z_model >= z_train_min) & (z_model <= z_train_max)]
         ax2.plot(z_lcdm_zoom, flcdm_zoom, "b-", linewidth=2, alpha=0.8, label="ΛCDM Theory")
 
     ax2.set_xlabel("Redshift z", fontsize=12)
     ax2.set_ylabel("μ(z)", fontsize=12)
     ax2.set_title(
-        f"Reconstruction Detail (z ∈ [{z_min_zoom}, {z_max_zoom}])", fontsize=14, fontweight="bold"
+        f"Reconstruction (z ∈ [{z_train_min:.3f}, {z_train_max:.3f}])",
+        fontsize=14,
+        fontweight="bold",
     )
     ax2.grid(True, alpha=0.3)
     ax2.legend(fontsize=10)
