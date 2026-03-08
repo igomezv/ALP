@@ -38,7 +38,7 @@ class SupervisedNET:
         Enables Monte Carlo Dropout for uncertainty estimation (default is True).
     """
 
-    def __init__(self, deep=None, actfn='relu', dropout=0.2, mcdropout=True):
+    def __init__(self, deep=None, actfn="relu", dropout=0.2, mcdropout=True):
         self.dropout = dropout
         self.mcdropout = mcdropout
         self.actfn = actfn
@@ -70,8 +70,8 @@ class SupervisedNET:
         """
         predictions = np.array([model(testset, training=True) for _ in range(mc_dropout_num)])
         return {
-            'mean': np.mean(predictions, axis=0),
-            'std': np.std(predictions, axis=0, ddof=1),
+            "mean": np.mean(predictions, axis=0),
+            "std": np.std(predictions, axis=0, ddof=1),
         }
 
     def load_model(self, model_name):
@@ -88,7 +88,7 @@ class SupervisedNET:
         tf.keras.Model
             Loaded TensorFlow model.
         """
-        custom_objects = {'MCDropout': MCDropout}
+        custom_objects = {"MCDropout": MCDropout, "mse": tf.keras.losses.mse}
         return tf.keras.models.load_model(model_name, custom_objects=custom_objects)
 
     def model_tf(self):

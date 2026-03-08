@@ -13,9 +13,10 @@ quantification (Monte Carlo dropout).
 
 import tensorflow as tf
 from tensorflow import keras as K
-from ..utils.logger_config import logger  
+from ..utils.logger_config import logger
 
 
+@K.utils.register_keras_serializable()
 class MCDropout(K.layers.Layer):
     """
     Monte Carlo Dropout layer.
@@ -38,8 +39,12 @@ class MCDropout(K.layers.Layer):
     """
 
     def __init__(
-            self, rate: float, is_disabled: bool = False,
-            noise_shape: tuple = None, name: str = None, **kwargs
+        self,
+        rate: float,
+        is_disabled: bool = False,
+        noise_shape: tuple = None,
+        name: str = None,
+        **kwargs,
     ):
         super().__init__(name=name, **kwargs)
         self.rate = rate
@@ -70,11 +75,13 @@ class MCDropout(K.layers.Layer):
     def get_config(self) -> dict:
         """Returns the configuration of the layer for serialization."""
         config = super().get_config()
-        config.update({
-            'rate': self.rate,
-            'is_disabled': self.is_disabled,
-            'noise_shape': self.noise_shape,
-        })
+        config.update(
+            {
+                "rate": self.rate,
+                "is_disabled": self.is_disabled,
+                "noise_shape": self.noise_shape,
+            }
+        )
         return config
 
 
@@ -127,6 +134,6 @@ def resize_1d_tensor(t, target_len):
         Resized tensor with new temporal length.
     """
     t = tf.expand_dims(t, axis=1)  # → (batch, 1, time, channels)
-    t = tf.image.resize(t, size=[1, target_len], method='bilinear')  # Valid 2D resize
+    t = tf.image.resize(t, size=[1, target_len], method="bilinear")  # Valid 2D resize
     t = tf.squeeze(t, axis=1)  # → (batch, time, channels)
     return t
