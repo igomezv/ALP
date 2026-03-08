@@ -49,6 +49,52 @@ all = [
   "arviz>=0.17.0"
 ]
 
+# Conda environment configuration
+[tool.conda-env]
+name = "alp"
+channels = ["conda-forge", "defaults"]
+
+[tool.conda-env.dependencies]
+# Core ML/DL packages
+tensorflow = ">=2.15.0"
+numpy = ">=1.26.0"
+scipy = ">=1.12.0"
+pandas = ">=2.2.0"
+scikit-learn = ">=1.3.0"
+
+# Data handling
+h5py = ">=3.10.0"
+tables = "*"
+
+# Visualization
+matplotlib = ">=3.8.0"
+seaborn = ">=0.13.0"
+
+# Optimization and hyperparameter tuning
+optuna = ">=3.6.0"
+deap = ">=1.4.0"
+
+# Progress bars and utilities
+tqdm = ">=4.66.0"
+
+# Astronomy-specific packages
+astropy = ">=6.0.0"
+astroquery = ">=0.4.6"
+pyastronomy = ">=0.21.0"
+
+# Statistical modeling
+statsmodels = ">=0.14.0"
+
+# Optional dependencies
+plotly = ">=5.22.0"
+jupyterlab = ">=4.2.0"
+ipykernel = ">=6.29.0"
+
+# Development tools
+pytest = ">=8.2.0"
+ruff = ">=0.6.4"
+black = ">=24.8.0"
+
 
 [tool.ruff]
 line-length = 99
