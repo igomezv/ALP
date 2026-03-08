@@ -1,4 +1,4 @@
-# ALP --- Astro Layer Perceptron
+# Astro Layer Perceptron (ALP)
 
 A modular deep learning framework for astrophysical data modeling and
 cosmological parameter estimation.
