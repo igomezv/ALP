@@ -1,7 +1,5 @@
 # ALP - Astro Layer Perceptron
 
-[Work in progress, beta version...]
-
 A deep learning framework for astrophysical data modeling and cosmological parameter estimation.
 
 ## Overview
