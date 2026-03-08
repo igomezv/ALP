@@ -9,8 +9,13 @@ ALP (Astro Layer Perceptron) is a modular Python framework for astrophysical reg
 ## Quick Start
 
 ```python
+import tensorflow as tf
 from alp.networks.mlp import MLP
 from alp.data.datasets import load_lsst_data, preprocess_lsst_data
+from alp.utils.gpu_config import setup_tensorflow_for_training
+
+# Use CPU to avoid GPU issues
+setup_tensorflow_for_training(force_cpu=True)
 
 # Load data
 z_data, mu_data, error_data = load_lsst_data()
