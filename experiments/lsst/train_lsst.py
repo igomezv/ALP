@@ -18,7 +18,7 @@ from alp.data.datasets import load_lsst_data, preprocess_lsst_data
 from alp.networks.mlp import MLP
 from alp.networks.uncertainty import UncertaintyQuantifier
 from alp.physics.cosmo import calculate_distance_modulus_range, create_lcdm_model
-from alp.utils.gpu_config import setup_tensorflow_for_training
+from alp.utils.gpu_config import setup_tensorflow_for_training, create_safe_dataset
 from alp.utils.logger_config import logger
 
 
@@ -79,12 +79,14 @@ def objective(trial, z_train, y_train, z_test, y_test):
             monitor="val_loss", factor=0.5, patience=50, min_lr=1e-7, verbose=0
         )
 
+        # Create safe datasets with parallelization disabled
+        train_dataset = create_safe_dataset(z_train, y_train, batch_size=batch_size, shuffle=True)
+        test_dataset = create_safe_dataset(z_test, y_test, batch_size=batch_size, shuffle=False)
+
         history = keras_model.fit(
-            z_train,
-            y_train,
-            validation_data=(z_test, y_test),
+            train_dataset,
+            validation_data=test_dataset,
             epochs=1000,
-            batch_size=batch_size,
             verbose=0,
             callbacks=[early_stopping, reduce_lr],
         )
@@ -278,12 +280,14 @@ def train_lsst_model(best_hyperparams=None):
         monitor="val_loss", patience=500, restore_best_weights=True, verbose=1
     )
 
+    # Create safe datasets with parallelization disabled
+    train_dataset = create_safe_dataset(z_train, y_train, batch_size=batch_size, shuffle=True)
+    test_dataset = create_safe_dataset(z_test, y_test, batch_size=batch_size, shuffle=False)
+
     history = keras_model.fit(
-        z_train,
-        y_train,
-        validation_data=(z_test, y_test),
+        train_dataset,
+        validation_data=test_dataset,
         epochs=1000,
-        batch_size=batch_size,
         verbose=2,
         callbacks=[early_stopping],
     )
