@@ -588,7 +588,7 @@ def main():
     logger.info("\n" + "=" * 70)
     logger.info("PHASE 1: Hyperparameter Optimization with Optuna NSGA-II")
     logger.info("=" * 70)
-    best_hyperparams = optimize_hyperparameters(z_train, y_train, z_test, y_test, n_trials=2)
+    best_hyperparams = optimize_hyperparameters(z_train, y_train, z_test, y_test, n_trials=10)
     logger.info("=" * 70 + "\n")
 
     # ========================================================================
