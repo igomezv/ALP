@@ -6,9 +6,11 @@ the ALP framework for better modularity and extensibility.
 """
 
 import os
+import json
 
 import matplotlib.pyplot as plt
 import numpy as np
+import optuna
 import tensorflow as tf
 
 from alp.data.data_reading import force_x_range_in_training
@@ -20,8 +22,211 @@ from alp.utils.gpu_config import setup_tensorflow_for_training
 from alp.utils.logger_config import logger
 
 
-def train_lsst_model():
-    """Train LSST dual-output regression model using ALP framework."""
+def objective(trial, z_train, y_train, z_test, y_test):
+    """Objective function for Optuna optimization.
+
+    Parameters
+    ----------
+    trial : optuna.trial.Trial
+        Optuna trial object
+    z_train : np.ndarray
+        Training redshift data
+    y_train : np.ndarray
+        Training target data (mu and error)
+    z_test : np.ndarray
+        Test redshift data
+    y_test : np.ndarray
+        Test target data (mu and error)
+
+    Returns
+    -------
+    float
+        Best validation loss achieved
+    """
+
+    # Hyperparameters to optimize
+    deep = trial.suggest_categorical(
+        "deep",
+        [
+            [100, 100, 100],
+            [200, 200, 200, 200],
+            [300, 300, 300],
+            [128, 256, 128, 64],
+            [64, 128, 256, 128, 64],
+        ],
+    )
+    dropout = trial.suggest_float("dropout", 0.05, 0.3)
+    lr = trial.suggest_loguniform("lr", 1e-5, 1e-2)
+    batch_size = trial.suggest_categorical("batch_size", [16, 32, 64, 128])
+
+    logger.info(
+        f"Trial {trial.number}: deep={deep}, dropout={dropout:.3f}, lr={lr:.6f}, batch_size={batch_size}"
+    )
+
+    try:
+        # Create model
+        model = MLP(n_inputs=1, deep=deep, dropout=dropout, mcdropout=True, n_outputs=2)
+        keras_model = model.model_tf()
+
+        # Compile and train
+        keras_model.compile(optimizer=tf.keras.optimizers.Adam(learning_rate=lr), loss="mse")
+
+        early_stopping = tf.keras.callbacks.EarlyStopping(
+            monitor="val_loss", patience=100, restore_best_weights=True, verbose=0
+        )
+
+        reduce_lr = tf.keras.callbacks.ReduceLROnPlateau(
+            monitor="val_loss", factor=0.5, patience=50, min_lr=1e-7, verbose=0
+        )
+
+        history = keras_model.fit(
+            z_train,
+            y_train,
+            validation_data=(z_test, y_test),
+            epochs=1000,
+            batch_size=batch_size,
+            verbose=0,
+            callbacks=[early_stopping, reduce_lr],
+        )
+
+        # Return best validation loss
+        val_loss = min(history.history["val_loss"])
+        logger.info(f"Trial {trial.number}: val_loss={val_loss:.4f}")
+
+        return val_loss
+
+    except Exception as e:
+        logger.error(f"Trial {trial.number} failed: {e}")
+        return float("inf")
+
+
+def optimize_hyperparameters(z_train, y_train, z_test, y_test, n_trials=50, timeout=3600):
+    """Run Optuna hyperparameter optimization.
+
+    Parameters
+    ----------
+    z_train : np.ndarray
+        Training redshift data
+    y_train : np.ndarray
+        Training target data (mu and error)
+    z_test : np.ndarray
+        Test redshift data
+    y_test : np.ndarray
+        Test target data (mu and error)
+    n_trials : int, optional
+        Number of optimization trials (default: 50)
+    timeout : int, optional
+        Maximum time in seconds (default: 3600)
+
+    Returns
+    -------
+    dict
+        Best hyperparameters from optimization
+    """
+
+    # Create study with advanced sampling and pruning
+    study = optuna.create_study(
+        study_name="lsst_alp_optimization",
+        direction="minimize",
+        sampler=optuna.samplers.NSGAIISampler(seed=42),
+        pruner=optuna.pruners.MedianPruner(n_startup_trials=5, n_warmup_steps=10),
+    )
+
+    logger.info(f"Starting hyperparameter optimization with {n_trials} trials, {timeout}s timeout")
+
+    # Create lambda function to pass data to objective
+    objective_with_data = lambda trial: objective(trial, z_train, y_train, z_test, y_test)
+
+    # Optimize with progress monitoring
+    study.optimize(objective_with_data, n_trials=n_trials, timeout=timeout, show_progress_bar=True)
+
+    # Print best results
+    logger.info("Optimization completed!")
+    logger.info("Best trial:")
+    trial = study.best_trial
+    logger.info(f"  Value (val_loss): {trial.value:.6f}")
+    logger.info(f"  Best hyperparameters:")
+    for key, value in trial.params.items():
+        logger.info(f"    {key}: {value}")
+
+    # Save best parameters and study results
+    os.makedirs("experiments/lsst/outputs", exist_ok=True)
+
+    # Save best hyperparameters
+    best_params = {
+        "best_val_loss": float(trial.value),
+        "best_hyperparameters": trial.params,
+        "trial_number": trial.number,
+    }
+
+    with open("experiments/lsst/outputs/best_hyperparameters.json", "w") as f:
+        json.dump(best_params, f, indent=2)
+
+    # Save complete study
+    study_data = {
+        "best_trial": {
+            "number": trial.number,
+            "value": float(trial.value),
+            "params": trial.params,
+        },
+        "n_trials": len(study.trials),
+        "study_name": study.study_name,
+    }
+
+    with open("experiments/lsst/outputs/optuna_study_summary.json", "w") as f:
+        json.dump(study_data, f, indent=2)
+
+    logger.info("Results saved to experiments/lsst/outputs/")
+
+    return trial.params
+
+
+def plot_optimization_results(study):
+    """Plot optimization results.
+
+    Parameters
+    ----------
+    study : optuna.study.Study
+        Completed Optuna study
+    """
+
+    os.makedirs("experiments/lsst/outputs", exist_ok=True)
+
+    # Plot optimization history
+    plt.figure(figsize=(15, 5))
+
+    plt.subplot(1, 3, 1)
+    optuna.visualization.matplotlib.plot_optimization_history(study)
+    plt.title("Optimization History")
+
+    plt.subplot(1, 3, 2)
+    optuna.visualization.matplotlib.plot_parallel_coordinate(study)
+    plt.title("Parallel Coordinate")
+
+    plt.subplot(1, 3, 3)
+    optuna.visualization.matplotlib.plot_param_importances(study)
+    plt.title("Parameter Importances")
+
+    plt.tight_layout()
+    plt.savefig("experiments/lsst/outputs/optuna_results.png", dpi=100, bbox_inches="tight")
+    plt.close()
+
+    logger.info("Optimization plots saved to experiments/lsst/outputs/optuna_results.png")
+
+
+def train_lsst_model(best_hyperparams=None):
+    """Train LSST dual-output regression model using ALP framework.
+
+    Parameters
+    ----------
+    best_hyperparams : dict, optional
+        Best hyperparameters from optimization. If None, uses defaults.
+
+    Returns
+    -------
+    tuple
+        Training history, UQ results, test redshift range, and data
+    """
 
     # Setup TensorFlow with GPU-safe configuration (use CPU to avoid CUDA PTX issues)
     setup_tensorflow_for_training(seed=42, force_cpu=True)
@@ -42,13 +247,33 @@ def train_lsst_model():
     logger.info(f"Error range: {np.min(error_data):.4f} - {np.max(error_data):.4f}")
     logger.info(f"Training mu range: {np.min(y_train[:, 0]):.4f} - {np.max(y_train[:, 0]):.4f}")
 
+    # Use optimized hyperparameters or defaults
+    if best_hyperparams is None:
+        logger.info("No optimized hyperparameters provided, using defaults...")
+        deep = [200, 200, 200, 200]
+        dropout = 0.1
+        learning_rate = 0.0001
+        batch_size = 16
+    else:
+        logger.info("Using optimized hyperparameters from Optuna")
+        deep = best_hyperparams["deep"]
+        dropout = best_hyperparams["dropout"]
+        learning_rate = best_hyperparams["lr"]
+        batch_size = best_hyperparams["batch_size"]
+        logger.info(f"  Architecture: {deep}")
+        logger.info(f"  Dropout: {dropout:.4f}")
+        logger.info(f"  Learning Rate: {learning_rate:.6e}")
+        logger.info(f"  Batch Size: {batch_size}")
+
     # Create ALP model
     logger.info("Creating ALP dual-output MLP...")
-    model = MLP(n_inputs=1, deep=[200, 200, 200, 200], dropout=0.1, mcdropout=True, n_outputs=2)
+    model = MLP(n_inputs=1, deep=deep, dropout=dropout, mcdropout=True, n_outputs=2)
     keras_model = model.model_tf()
 
     # Compile model
-    keras_model.compile(optimizer=tf.keras.optimizers.Adam(learning_rate=0.0001), loss="mse")
+    keras_model.compile(
+        optimizer=tf.keras.optimizers.Adam(learning_rate=learning_rate), loss="mse"
+    )
 
     # Train model
     logger.info("Training model...")
@@ -61,7 +286,7 @@ def train_lsst_model():
         y_train,
         validation_data=(z_test, y_test),
         epochs=1000,
-        batch_size=16,
+        batch_size=batch_size,
         verbose=2,
         callbacks=[early_stopping],
     )
@@ -387,14 +612,33 @@ def main():
     os.makedirs("experiments/lsst/outputs", exist_ok=True)
     os.makedirs("models", exist_ok=True)
 
-    # Train and evaluate
-    history, results, z_test_range, z_data, mu_data, error_data = train_lsst_model()
+    # Load data for optimization
+    logger.info("Loading data for hyperparameter optimization...")
+    z_data, mu_data, error_data = load_lsst_data()
+    z_train, z_test, y_train, y_test, scaler = preprocess_lsst_data(z_data, mu_data, error_data)
+    z_train, y_train, _ = force_x_range_in_training(
+        z_train, y_train, np.concatenate([z_train, z_test]), np.concatenate([y_train, y_test])
+    )
+
+    # Run hyperparameter optimization
+    logger.info("\n" + "=" * 70)
+    logger.info("PHASE 1: Hyperparameter Optimization with Optuna NSGA-II")
+    logger.info("=" * 70)
+    best_hyperparams = optimize_hyperparameters(z_train, y_train, z_test, y_test, n_trials=50)
+    logger.info("=" * 70 + "\n")
+
+    # Train and evaluate with best hyperparameters
+    logger.info("PHASE 2: Training with Optimized Hyperparameters")
+    history, results, z_test_range, z_data, mu_data, error_data = train_lsst_model(
+        best_hyperparams
+    )
 
     # Plot results
     plot_results(history, results, z_test_range, z_data, mu_data, error_data)
 
     logger.info("LSST training completed successfully!")
     logger.info("Model saved: models/alp_lsst_model.h5")
+    logger.info("Best hyperparameters saved: experiments/lsst/outputs/best_hyperparameters.json")
     logger.info("Results plot: experiments/lsst/outputs/lsst_alp_results.png")
 
 
