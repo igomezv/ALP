@@ -228,9 +228,6 @@ def train_lsst_model(best_hyperparams=None):
         Training history, UQ results, test redshift range, and data
     """
 
-    # Setup TensorFlow with GPU-safe configuration (use CPU to avoid CUDA PTX issues)
-    setup_tensorflow_for_training(seed=42, force_cpu=True)
-
     # Load and preprocess data
     logger.info("Loading LSST data...")
     z_data, mu_data, error_data = load_lsst_data()
@@ -608,9 +605,19 @@ def main():
     """Main training function."""
     logger.info("Starting LSST dual-output regression training with ALP framework")
 
+
+def main():
+    """Main training function."""
+    logger.info("Starting LSST dual-output regression training with ALP framework")
+
     # Create output directories
     os.makedirs("experiments/lsst/outputs", exist_ok=True)
     os.makedirs("models", exist_ok=True)
+
+    # Setup TensorFlow BEFORE any TensorFlow operations (critical for GPU device configuration)
+    # This must be done before optimization phase to avoid "Visible devices cannot be modified" error
+    logger.info("Setting up TensorFlow environment...")
+    setup_tensorflow_for_training(seed=42, force_cpu=True)
 
     # Load data for optimization
     logger.info("Loading data for hyperparameter optimization...")
