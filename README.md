@@ -1,8 +1,5 @@
 # Astro Layer Perceptron (ALP)
 
-A modular deep learning framework for astrophysical data modeling and
-cosmological parameter estimation.
-
 ALP provides neural-network tools for reconstructing cosmological
 observables and performing data-driven inference with uncertainty
 quantification.
