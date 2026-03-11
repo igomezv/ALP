@@ -16,6 +16,7 @@ import numpy as np
 import tensorflow as tf
 from .net_blocks import MCDropout
 from ..utils.logger_config import logger
+from ..utils.gpu_config import get_device_name, is_gpu_available
 
 
 class SupervisedNET:
@@ -24,7 +25,8 @@ class SupervisedNET:
 
     Provides shared initialization, dropout management, and
     Monte Carlo Dropout prediction methods for regression or
-    classification networks.
+    classification networks. Automatically handles GPU/CPU device
+    management with fallback to CPU if GPU is unavailable.
 
     Parameters
     ----------
@@ -36,6 +38,13 @@ class SupervisedNET:
         Dropout rate applied to layers (default is 0.2).
     mcdropout : bool, optional
         Enables Monte Carlo Dropout for uncertainty estimation (default is True).
+
+    Notes
+    -----
+    Device Management:
+    - Models automatically run on available GPU if configured via setup_tensorflow_for_training()
+    - Falls back to CPU automatically if GPU is unavailable or encounters errors
+    - Use with create_safe_dataset() for GPU-safe data loading
     """
 
     def __init__(self, deep=None, actfn="relu", dropout=0.2, mcdropout=True):
@@ -45,6 +54,10 @@ class SupervisedNET:
         self.deep = deep if deep is not None else [100, 100, 100]
 
         logger.info(f"TensorFlow Version: {tf.__version__}")
+        if is_gpu_available():
+            logger.info(f"GPU available, models will train on: {get_device_name()}")
+        else:
+            logger.info("Training on CPU")
 
     def mcdo_predict(self, testset, model, mc_dropout_num=50):
         """
