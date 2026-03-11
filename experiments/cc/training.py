@@ -228,13 +228,14 @@ def main():
     logger.info(f"Error range: {np.min(error_data):.4f} - {np.max(error_data):.4f}")
     logger.info(f"Training H(z) range: {np.min(y_train[:, 0]):.4f} - {np.max(y_train[:, 0]):.4f}")
 
-    logger.info("Training model with default hyperparameters...")
+    # Optimized hyperparameters from Optuna NSGA-II search
+    logger.info("Training model with optimized hyperparameters...")
     model, history = train_cc_model(
         z_train, y_train, z_test, y_test,
-        learning_rate=0.0001,
-        batch_size=16,
+        learning_rate=0.000462258900102083,
+        batch_size=8,
         dropout_rate=0.1,
-        layer_width=200,
+        layer_width=96,
         epochs=1000,
     )
 
