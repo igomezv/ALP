@@ -7,7 +7,7 @@ from sklearn.preprocessing import StandardScaler
 from sklearn.model_selection import train_test_split
 
 
-def load_lsst_data(data_path="Data_SNIa_LSST/larger/hubble_diagram.txt"):
+def load_lsst_data(data_path="data/lsst_hubble_diagram.txt"):
     """Load LSST supernova data for dual-output regression.
 
     Args:
@@ -166,5 +166,186 @@ def preprocess_cc_data(z_data, hz_data, error_data, random_state=42):
     # Combine H(z) and error into dual-output target
     y_train = np.column_stack([y_tr, e_tr])
     y_test = np.column_stack([y_te, e_te])
+
+    return z_train, z_test, y_train, y_test, scaler
+
+
+def load_pantheon_data(data_path="data/pantheon_lcparam_full_long_zhel.txt"):
+    """Load Pantheon supernova data for dual-output regression.
+
+    Args:
+        data_path (str): Path to pantheon_lcparam_full_long_zhel.txt file
+
+    Returns:
+        tuple: (z_data, mb_data, dmb_data)
+            - z_data: Heliocentric redshift values (N, 1)
+            - mb_data: Apparent magnitude values (N, 1)
+            - dmb_data: Magnitude errors (N, 1)
+    """
+    # Read the header line and extract column names
+    with open(data_path, 'r') as f:
+        header_line = f.readline().strip()
+    # Remove the '#' character if present
+    if header_line.startswith('#'):
+        header_line = header_line[1:]
+    col_names = header_line.split()
+    
+    # Read data with explicit column names
+    df_data = pd.read_csv(data_path, skiprows=1, sep=r"\s+", engine="python", names=col_names)
+    z_data = df_data[["zhel"]].values
+    mb_data = df_data[["mb"]].values
+    dmb_data = df_data[["dmb"]].values
+
+    return z_data, mb_data, dmb_data
+
+
+def preprocess_pantheon_data(z_data, mb_data, dmb_data, train_split=0.8, random_state=42):
+    """Preprocess Pantheon data with scaling and train/test split.
+
+    Args:
+        z_data (np.array): Redshift values
+        mb_data (np.array): Apparent magnitude values
+        dmb_data (np.array): Magnitude error values
+        train_split (float): Training split ratio
+        random_state (int): Random seed
+
+    Returns:
+        tuple: (z_train, z_test, y_train, y_test, scaler)
+    """
+    z_data = np.array(z_data).flatten()
+    mb_data = np.array(mb_data).flatten()
+    dmb_data = np.array(dmb_data).flatten()
+
+    # Combine mb and error for dual output
+    y_data = np.column_stack([mb_data, dmb_data])
+
+    # Randomize
+    randomize = np.random.RandomState(random_state).permutation(len(z_data))
+    z_data = z_data[randomize]
+    y_data = y_data[randomize]
+
+    # Scale input
+    scaler = StandardScaler()
+    z_scaled = scaler.fit_transform(z_data.reshape(-1, 1))
+
+    # Train/test split
+    n_train = int(train_split * len(z_scaled))
+    z_train, z_test = np.split(z_scaled, [n_train])
+    y_train, y_test = np.split(y_data, [n_train])
+
+    return z_train, z_test, y_train, y_test, scaler
+
+
+def load_fs8_data(data_path="data/fs8Diagram.txt"):
+    """Load fs8 growth rate data for dual-output regression.
+
+    Args:
+        data_path (str): Path to fs8Diagram.txt file
+
+    Returns:
+        tuple: (z_data, fs8_data, error_data)
+            - z_data: Redshift values (N, 1)
+            - fs8_data: fs8 values (N, 1)
+            - error_data: Error values (N, 1)
+    """
+    data = pd.read_csv(data_path, skiprows=3, names=["z", "fs8", "error", "om_ref"],
+                       sep=r"\t", engine="python")
+    z_data = data[["z"]].values
+    fs8_data = data[["fs8"]].values
+    error_data = data[["error"]].values
+
+    return z_data, fs8_data, error_data
+
+
+def preprocess_fs8_data(z_data, fs8_data, error_data, train_split=0.8, random_state=42):
+    """Preprocess fs8 data with scaling and train/test split.
+
+    Args:
+        z_data (np.array): Redshift values
+        fs8_data (np.array): fs8 values
+        error_data (np.array): Error values
+        train_split (float): Training split ratio
+        random_state (int): Random seed
+
+    Returns:
+        tuple: (z_train, z_test, y_train, y_test, scaler)
+    """
+    z_data = np.array(z_data).flatten()
+    fs8_data = np.array(fs8_data).flatten()
+    error_data = np.array(error_data).flatten()
+
+    # Combine fs8 and error for dual output
+    y_data = np.column_stack([fs8_data, error_data])
+
+    # Randomize
+    randomize = np.random.RandomState(random_state).permutation(len(z_data))
+    z_data = z_data[randomize]
+    y_data = y_data[randomize]
+
+    # Scale input
+    scaler = StandardScaler()
+    z_scaled = scaler.fit_transform(z_data.reshape(-1, 1))
+
+    # Train/test split
+    n_train = int(train_split * len(z_scaled))
+    z_train, z_test = np.split(z_scaled, [n_train])
+    y_train, y_test = np.split(y_data, [n_train])
+
+    return z_train, z_test, y_train, y_test, scaler
+
+
+def load_des_data(data_path="data/DES-SN5YR_HD.csv"):
+    """Load DES supernova data for dual-output regression.
+
+    Args:
+        data_path (str): Path to DES-SN5YR_HD.csv file
+
+    Returns:
+        tuple: (z_data, mu_data, muerr_data)
+            - z_data: Heliocentric redshift values (N, 1)
+            - mu_data: Distance modulus values (N, 1)
+            - muerr_data: Distance modulus errors (N, 1)
+    """
+    df_data = pd.read_csv(data_path)
+    z_data = df_data[["zHEL"]].values
+    mu_data = df_data[["MU"]].values
+    muerr_data = df_data[["MUERR_FINAL"]].values
+
+    return z_data, mu_data, muerr_data
+
+
+def preprocess_des_data(z_data, mu_data, muerr_data, train_split=0.8, random_state=42):
+    """Preprocess DES data with scaling and train/test split.
+
+    Args:
+        z_data (np.array): Redshift values
+        mu_data (np.array): Distance modulus values
+        muerr_data (np.array): Distance modulus error values
+        train_split (float): Training split ratio
+        random_state (int): Random seed
+
+    Returns:
+        tuple: (z_train, z_test, y_train, y_test, scaler)
+    """
+    z_data = np.array(z_data).flatten()
+    mu_data = np.array(mu_data).flatten()
+    muerr_data = np.array(muerr_data).flatten()
+
+    # Combine mu and error for dual output
+    y_data = np.column_stack([mu_data, muerr_data])
+
+    # Randomize
+    randomize = np.random.RandomState(random_state).permutation(len(z_data))
+    z_data = z_data[randomize]
+    y_data = y_data[randomize]
+
+    # Scale input
+    scaler = StandardScaler()
+    z_scaled = scaler.fit_transform(z_data.reshape(-1, 1))
+
+    # Train/test split
+    n_train = int(train_split * len(z_scaled))
+    z_train, z_test = np.split(z_scaled, [n_train])
+    y_train, y_test = np.split(y_data, [n_train])
 
     return z_train, z_test, y_train, y_test, scaler

@@ -54,5 +54,5 @@ class MLP(SupervisedNET):
 
         outputs = K.layers.Dense(self.n_outputs, activation='linear')(x)
         model = K.Model(inputs, outputs, name='mlp')
-        logger.info(model.summary())
+        model.summary()
         return model
