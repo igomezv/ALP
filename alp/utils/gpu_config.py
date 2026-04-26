@@ -177,15 +177,6 @@ def create_safe_dataset(
         logger.warning("Falling back to numpy arrays for training")
         # Return as-is; training loop should handle both Dataset and array formats
         raise
-=======
-# Set critical environment variables BEFORE importing TensorFlow modules
-os.environ["TF_NUM_INTRAOP_THREADS"] = "1"
-os.environ["TF_NUM_INTEROP_THREADS"] = "1"
-os.environ["OMP_NUM_THREADS"] = "1"
-os.environ["MKL_NUM_THREADS"] = "1"
-os.environ["NUMEXPR_NUM_THREADS"] = "1"
-os.environ["TF_ENABLE_ONEDNN_OPTS"] = "0"
->>>>>>> Stashed changes
 
 
 def configure_gpu(
@@ -223,7 +214,9 @@ def configure_gpu(
             gpus = tf.config.list_physical_devices("GPU")
 
             if gpus:
-                logger.info(f"Found {len(gpus)} GPU device(s) (attempt {attempt + 1}/{retry_count})")
+                logger.info(
+                    f"Found {len(gpus)} GPU device(s) (attempt {attempt + 1}/{retry_count})"
+                )
 
                 # Set specific GPUs if requested
                 if set_visible_devices is not None:
@@ -235,9 +228,13 @@ def configure_gpu(
                             "GPU",
                         )
                         gpus = tf.config.list_physical_devices("GPU")
-                        logger.info(f"Configured {len(gpus)} GPU device(s): {[g.name for g in gpus]}")
+                        logger.info(
+                            f"Configured {len(gpus)} GPU device(s): {[g.name for g in gpus]}"
+                        )
                     except (ValueError, IndexError) as e:
-                        logger.warning(f"Invalid GPU device specification '{set_visible_devices}': {e}")
+                        logger.warning(
+                            f"Invalid GPU device specification '{set_visible_devices}': {e}"
+                        )
 
                 # Configure memory growth
                 if memory_growth or allow_memory_growth:
@@ -259,7 +256,9 @@ def configure_gpu(
 
         except RuntimeError as e:
             if "CUDA" in str(e) or "GPU" in str(e):
-                logger.warning(f"GPU configuration failed (attempt {attempt + 1}/{retry_count}): {e}")
+                logger.warning(
+                    f"GPU configuration failed (attempt {attempt + 1}/{retry_count}): {e}"
+                )
                 if attempt < retry_count - 1:
                     logger.info("Retrying GPU configuration...")
                     continue
@@ -401,7 +400,9 @@ def setup_tensorflow_for_training(
     try:
         seed_success = set_random_seed_safely(seed)
         if not seed_success:
-            logger.warning("Random seed setting had issues, training may not be fully reproducible")
+            logger.warning(
+                "Random seed setting had issues, training may not be fully reproducible"
+            )
             success = False
     except Exception as e:
         logger.warning(f"Random seed setting failed: {e}, trying CPU-only approach")
@@ -484,12 +485,7 @@ def handle_cuda_error(error: Exception) -> str:
 
 
 def safe_model_fit(
-    model: tf.keras.Model,
-    x_train,
-    y_train,
-    x_val=None,
-    y_val=None,
-    **fit_kwargs
+    model: tf.keras.Model, x_train, y_train, x_val=None, y_val=None, **fit_kwargs
 ) -> Tuple[Optional[tf.keras.callbacks.History], bool]:
     """
     Safely train a model with automatic GPU-to-CPU fallback on CUDA errors.
@@ -531,17 +527,13 @@ def safe_model_fit(
     try:
         # First attempt: Try with current device (GPU if available)
         logger.info(f"Training on {get_device_name()}...")
-        
+
         if x_val is not None and y_val is not None:
             validation_data = (x_val, y_val)
         else:
             validation_data = None
 
-        history = model.fit(
-            x_train, y_train,
-            validation_data=validation_data,
-            **fit_kwargs
-        )
+        history = model.fit(x_train, y_train, validation_data=validation_data, **fit_kwargs)
         logger.info("Training completed successfully")
         return history, True
 
@@ -562,16 +554,14 @@ def safe_model_fit(
             # Retry on CPU
             try:
                 logger.info("Retrying training on CPU...")
-                
+
                 if x_val is not None and y_val is not None:
                     validation_data = (x_val, y_val)
                 else:
                     validation_data = None
 
                 history = model.fit(
-                    x_train, y_train,
-                    validation_data=validation_data,
-                    **fit_kwargs
+                    x_train, y_train, validation_data=validation_data, **fit_kwargs
                 )
                 logger.info("Training completed successfully on CPU")
                 return history, True

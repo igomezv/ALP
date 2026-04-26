@@ -19,7 +19,7 @@ from .uncertainty import UncertaintyQuantifier
 
 # --- Hyperparameter Optimization ---
 from .optuna_optimizer import OptunaOptimizer, quick_optimize
-from .trainer import HyperparameterOptimizer, ModelTrainer
+# from .trainer import HyperparameterOptimizer, ModelTrainer  # Module not available
 
 # --- Uncertainty Analysis ---
 from .uncertainty_analyzer import UncertaintyAnalyzer, load_and_analyze_model
@@ -42,8 +42,8 @@ __all__ = [
     # Hyperparameter Optimization
     "OptunaOptimizer",
     "quick_optimize",
-    "HyperparameterOptimizer",
-    "ModelTrainer",
+    # "HyperparameterOptimizer",
+    # "ModelTrainer",
     # Uncertainty Analysis
     "UncertaintyAnalyzer",
     "load_and_analyze_model",
