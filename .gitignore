@@ -205,3 +205,14 @@ cython_debug/
 marimo/_static/
 marimo/_lsp/
 __marimo__/
+
+# Experiment outputs
+experiments/**/outputs/
+experiments/**/simplified_uncertainty_analysis/
+experiments/**/model_comparison/
+experiments/**/uq_comparison/
+experiments/**/integrated_results/
+experiments/**/paper_outputs/
+*.png
+*.pdf
+*.json
