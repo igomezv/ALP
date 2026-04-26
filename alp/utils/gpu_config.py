@@ -17,6 +17,15 @@ from contextlib import contextmanager
 from .logger_config import logger
 
 
+# Set critical environment variables BEFORE importing TensorFlow modules
+os.environ["TF_NUM_INTRAOP_THREADS"] = "1"
+os.environ["TF_NUM_INTEROP_THREADS"] = "1"
+os.environ["OMP_NUM_THREADS"] = "1"
+os.environ["MKL_NUM_THREADS"] = "1"
+os.environ["NUMEXPR_NUM_THREADS"] = "1"
+os.environ["TF_ENABLE_ONEDNN_OPTS"] = "0"
+
+
 def get_device_name() -> str:
     """
     Get the current device being used (GPU or CPU).
@@ -168,6 +177,15 @@ def create_safe_dataset(
         logger.warning("Falling back to numpy arrays for training")
         # Return as-is; training loop should handle both Dataset and array formats
         raise
+=======
+# Set critical environment variables BEFORE importing TensorFlow modules
+os.environ["TF_NUM_INTRAOP_THREADS"] = "1"
+os.environ["TF_NUM_INTEROP_THREADS"] = "1"
+os.environ["OMP_NUM_THREADS"] = "1"
+os.environ["MKL_NUM_THREADS"] = "1"
+os.environ["NUMEXPR_NUM_THREADS"] = "1"
+os.environ["TF_ENABLE_ONEDNN_OPTS"] = "0"
+>>>>>>> Stashed changes
 
 
 def configure_gpu(
@@ -303,6 +321,31 @@ def set_random_seed_safely(seed: int = 42) -> bool:
         return False
 
 
+def disable_dataset_parallelization() -> bool:
+    """
+    Disable TensorFlow dataset parallelization to avoid threadpool issues.
+
+    This fixes the "use_unbounded_threadpool" attribute error that causes
+    training to hang indefinitely.
+
+    Returns
+    -------
+    bool
+        True if configuration was successful
+    """
+    try:
+        # Disable inter-op and intra-op parallelism
+        tf.config.threading.set_inter_op_parallelism_threads(1)
+        tf.config.threading.set_intra_op_parallelism_threads(1)
+
+        logger.info("Disabled dataset parallelization to prevent threadpool issues")
+        logger.info("Set thread limits: inter_op=1, intra_op=1")
+        return True
+    except Exception as e:
+        logger.warning(f"Failed to disable dataset parallelization: {e}")
+        return False
+
+
 def setup_tensorflow_for_training(
     seed: int = 42, configure_gpu_settings: bool = True, force_cpu: bool = False
 ) -> Tuple[bool, str]:
@@ -332,6 +375,9 @@ def setup_tensorflow_for_training(
     device = "CPU:0"
 
     logger.info("Setting up TensorFlow for training...")
+
+    # Disable dataset parallelization early to prevent hang issues
+    disable_dataset_parallelization()
 
     # Force CPU if requested or if GPU issues are detected
     if force_cpu:
